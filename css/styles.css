@@ -1,6 +1,6 @@
-/* Cardo: a scholarly Hebrew face with full nikud and ta'amim (SIL OFL, fonts/Cardo-OFL.txt) */
-@font-face{font-family:"Cardo Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/cardo-hebrew-400-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
-@font-face{font-family:"Cardo Hebrew";font-style:normal;font-weight:700;font-display:swap;src:url(../fonts/cardo-hebrew-700-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+/* Noto Sans Hebrew: a clean sans close to Heebo, with full nikud and ta'amim (SIL OFL, fonts/NotoSansHebrew-OFL.txt) */
+@font-face{font-family:"Noto Sans Hebrew";font-style:normal;font-weight:400;font-display:swap;src:url(../fonts/noto-sans-hebrew-hebrew-400-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
+@font-face{font-family:"Noto Sans Hebrew";font-style:normal;font-weight:500;font-display:swap;src:url(../fonts/noto-sans-hebrew-hebrew-500-normal.woff2) format("woff2");unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F}
 :root{
   --bg:#ffffff;
   --surface:#f5f5f7;
@@ -20,7 +20,7 @@
   --font-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
   --font-he:"Heebo","Arial Hebrew",Arial,sans-serif;
   --knob:#ffffff;
-  --font-text:"Cardo Hebrew","SBL Hebrew","Times New Roman",serif;
+  --font-text:"Noto Sans Hebrew","Heebo","Arial Hebrew",Arial,sans-serif;
   box-sizing:border-box;
   padding-top:env(safe-area-inset-top,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);
@@ -176,11 +176,11 @@ h1,h2,h3,p,ol,ul{margin:0}
 .perek span[lang="he"]{text-transform:none;letter-spacing:0;font-size:.9375rem}
 .pasuk{padding:16px 0;border-bottom:1px solid var(--line);direction:rtl;text-align:right;display:grid;gap:8px;min-width:0}
 .pasuk:last-child{border-bottom:0}
-.mikra{font:400 1.625rem/1.75 var(--font-text);color:var(--ink)}
+.mikra{font:500 1.5rem/1.8 var(--font-text);color:var(--ink)}
 .mikra .num{display:inline-flex;align-items:center;gap:3px;font:700 .8125rem/1 var(--font-he);color:var(--accent);margin-inline-end:8px;vertical-align:.3em;transition:color .3s ease}
 .mikra .num svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
 .mikra.again{padding-inline-start:12px;border-inline-start:2px solid var(--line)}
-.targum{font:400 1.25rem/1.75 var(--font-text);color:var(--ink-2)}
+.targum{font:400 1.1875rem/1.8 var(--font-text);color:var(--ink-2)}
 .targum::before{content:"ת״א";font:700 .6875rem/1 var(--font-he);color:var(--ink-2);border:1px solid var(--line);border-radius:5px;padding:2px 4px;margin-inline-end:8px;vertical-align:.25em}
 .pasuk.read .num{color:var(--ok)}
 .reader-foot{display:grid;gap:12px;align-content:start;padding-top:22px;min-height:64dvh}

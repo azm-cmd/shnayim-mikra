@@ -12,7 +12,9 @@ js/sefaria.js     Loads Mikra and Targum Onkelos from Sefaria
 js/app.js         Hero, day strip, reader, check-in, organizer sheet
 ```
 
-No build step. Open `index.html` directly, or serve the folder with any static host (for example GitHub Pages).
+Live site: https://azm-cmd.github.io/shnayim-mikra/
+
+No build step. Open `index.html` directly, or serve the folder with any static host. GitHub Pages serves it from the root of `master`; every push to `master` updates the live site.
 
 ## Daily aliyah
 

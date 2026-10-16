@@ -7,7 +7,8 @@
 <meta name="description" content="Shnayim mikra v'echad targum, one aliyah a day, with a weekly raffle.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@500;800;900&family=Noto+Serif+Hebrew:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@500;800;900&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/cardo-hebrew-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://www.sefaria.org" crossorigin>
 <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -195,8 +196,11 @@
         <button class="btn-text" data-close type="button">Done</button>
       </div>
       <div class="reader-tools">
-        <p class="fine">Read each pasuk twice, then the Targum once. Tap the circle when you finish a pasuk.</p>
-        <label class="switch"><input type="checkbox" id="taamim" checked> Ta’amim</label>
+        <div class="switches">
+          <label class="switch"><input type="checkbox" id="double"> Double pasuk</label>
+          <label class="switch"><input type="checkbox" id="taamim" checked> Ta’amim</label>
+        </div>
+        <p class="fine" id="readerHow"></p>
       </div>
     </header>
     <div class="sheet-body" id="readerBody">
@@ -208,7 +212,8 @@
       </div>
       <ol class="pesukim" id="pesukim" dir="ltr"></ol>
       <div class="reader-foot" id="readerFoot" hidden>
-        <button class="btn" id="markAll" type="button">Mark all pesukim read</button>
+        <p class="reader-end" id="readerEnd" aria-live="polite"></p>
+        <button class="btn ghost" id="markAll" type="button">Mark all pesukim read</button>
         <p class="fine" id="readerSource"></p>
       </div>
     </div>

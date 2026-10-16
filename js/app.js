@@ -12,7 +12,7 @@ function buzz(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e){
 
 /* ---------- Storage (best effort) ---------- */
 var KEY = 'csm.prototype.v1';
-function blankStore(){ return { entries: [], winners: [], mine: {}, override: 'auto', progress: {}, taamim: true }; }
+function blankStore(){ return { entries: [], winners: [], mine: {}, override: 'auto', progress: {}, taamim: true, double: false }; }
 var store = blankStore();
 try {
   var raw = localStorage.getItem(KEY);
@@ -341,6 +341,7 @@ function Sheet(root, opts){
     function fin(){
       root.hidden = true; document.documentElement.classList.remove('locked');
       if (activeSheet === self) activeSheet = null;
+      if (opts.onClose) opts.onClose();
       if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true });
     }
     if (RM.matches){ fin(); return; }
@@ -391,10 +392,12 @@ document.addEventListener('keydown', function(e){
 });
 
 /* ---------- Reader: one day's aliyah, pasuk by pasuk ---------- */
-var reader = null, readerSheet = Sheet($('#readerRoot'), {});
-var readerRing = makeRing($('#readerRing')), pesukimEl = $('#pesukim'), taamimEl = $('#taamim');
+var reader = null, readerSheet = Sheet($('#readerRoot'), { onClose: stopTracking });
+var readerRing = makeRing($('#readerRing')), pesukimEl = $('#pesukim'), readerBody = $('#readerBody');
+var taamimEl = $('#taamim'), doubleEl = $('#double');
 var rLoading = $('#readerLoading'), rError = $('#readerError'), rFoot = $('#readerFoot');
 taamimEl.checked = store.taamim !== false;
+doubleEl.checked = !!store.double;
 
 function openReader(d){
   var idx = view().learnIdx; if (idx < 0 || idx > 11) return;
@@ -405,8 +408,8 @@ function openReader(d){
   $('#readerTitle').appendChild(el('span', { lang: 'he', dir: 'rtl', text: DAYS[d][0] }));
   $('#readerSub').textContent = DAYS[d][3] + ' · Parshas ' + PARSHIYOS[idx][1] + ' · ' + CSM.rangeLabel(range) + ' · ' + reader.list.length + ' pesukim';
   $('#readerErrorLink').href = CSM.sefariaLink(reader.ref);
-  pesukimEl.textContent = ''; $('#readerBody').scrollTop = 0;
-  renderReaderHead();
+  pesukimEl.textContent = ''; readerBody.scrollTop = 0;
+  renderReaderHead(); renderHow();
   readerSheet.open();
   loadReader();
 }
@@ -417,6 +420,8 @@ function loadReader(){
     if (reader !== r) return;
     r.text = t; rLoading.hidden = true;
     renderPesukim();
+    resumeAtFirstUnread();
+    startTracking();
   }, function(){
     if (reader !== r) return;
     rLoading.hidden = true; rError.hidden = false;
@@ -424,16 +429,26 @@ function loadReader(){
 }
 $('#readerRetry').addEventListener('click', loadReader);
 
+function renderHow(){
+  $('#readerHow').textContent = (store.double
+    ? 'Each pasuk is printed twice, then the Targum.'
+    : 'Read each pasuk twice, then the Targum once.') + ' Pesukim are marked read as you scroll past them.';
+}
 function renderReaderHead(){
-  var s = dayStats(reader.idx, reader.d);
+  var s = dayStats(reader.idx, reader.d), name = DAYS[reader.d][1];
   setRing(readerRing, s.frac, s.done + '/' + s.total);
-  readerRing.classList.toggle('done', s.complete);
   readerRing.querySelector('.bar').style.stroke = s.complete ? 'var(--ok)' : '';
-  $('#markAll').textContent = s.complete ? 'Clear progress for this day' : 'Mark all pesukim read';
+  $('#markAll').textContent = s.complete ? 'Clear progress for ' + name : 'Mark all pesukim read';
+  var end = $('#readerEnd');
+  end.classList.toggle('complete', s.complete);
+  end.textContent = '';
+  end.appendChild(el('b', { text: s.complete ? name + ' complete' : 'End of ' + name }));
+  end.appendChild(document.createTextNode(s.complete ? 'All ' + s.total + ' pesukim read.' : s.done + ' of ' + s.total + ' pesukim read so far.'));
 }
 function renderPesukim(){
   var r = reader, done = doneList(r.idx, r.d), withTaamim = store.taamim !== false, lastPerek = 0;
   pesukimEl.textContent = '';
+  r.items = [];
   r.list.forEach(function(pv, i){
     if (pv[0] !== lastPerek){
       lastPerek = pv[0];
@@ -443,47 +458,98 @@ function renderPesukim(){
     }
     var mikra = r.text.mikra[i] || '', targum = r.text.targum[i] || '';
     if (!withTaamim){ mikra = CSM.stripTaamim(mikra); targum = CSM.stripTaamim(targum); }
-    var isRead = done.indexOf(i) > -1;
-    var m = el('p', { class: 'mikra', lang: 'he' }, [ el('span', { class: 'num', text: CSM.heNum(pv[1], true) }) ]);
+    var num = el('span', { class: 'num', text: CSM.heNum(pv[1], true) });
+    var m = el('p', { class: 'mikra', lang: 'he' }, [num]);
     m.appendChild(document.createTextNode(mikra));
     var kids = [m];
+    if (store.double) kids.push(el('p', { class: 'mikra again', lang: 'he', 'aria-hidden': 'true', text: mikra }));
     if (targum) kids.push(el('p', { class: 'targum', lang: 'arc', text: targum }));
-    var box = el('span', { class: 'box', 'aria-hidden': 'true' }); box.appendChild(checkIcon());
-    var btn = el('button', { type: 'button', class: 'pk-check', 'data-i': String(i), 'aria-pressed': String(isRead),
-      'aria-label': 'Pasuk ' + pv[0] + ':' + pv[1] + ' read' }, [box]);
-    pesukimEl.appendChild(el('li', { class: 'pasuk' + (isRead ? ' read' : ''), id: 'p' + i }, [ el('div', { class: 'pk-text' }, kids), btn ]));
+    var li = el('li', { class: 'pasuk', id: 'p' + i, 'aria-label': 'Pasuk ' + pv[0] + ':' + pv[1] }, kids);
+    markItem(li, done.indexOf(i) > -1);
+    pesukimEl.appendChild(li);
+    r.items.push(li);
   });
   var src = $('#readerSource'); src.textContent = 'Text from Sefaria: ' +
     [r.text.mikraVersion, r.text.targumVersion && ('Targum Onkelos (' + r.text.targumVersion + ')')].filter(Boolean).join(' and ') + '. ';
   src.appendChild(el('a', { href: CSM.sefariaLink(r.ref), target: '_blank', rel: 'noopener', text: 'Open on Sefaria' }));
   rFoot.hidden = false;
 }
+function markItem(li, on){
+  if (li.classList.contains('read') === on && li.dataset.marked) return;
+  li.dataset.marked = '1';
+  li.classList.toggle('read', on);
+  var num = li.querySelector('.num'), icon = num.querySelector('svg');
+  if (on && !icon) num.insertBefore(checkIcon(), num.firstChild);
+  if (!on && icon) icon.remove();
+}
 function setDone(next){
   var r = reader, key = progKey(r.idx, r.d), was = dayStats(r.idx, r.d).complete;
   if (next.length) store.progress[key] = next.sort(function(a, b){ return a - b; }); else delete store.progress[key];
   save();
-  Array.prototype.forEach.call(pesukimEl.querySelectorAll('.pk-check'), function(b){
-    var on = next.indexOf(+b.dataset.i) > -1;
-    b.setAttribute('aria-pressed', String(on)); b.parentNode.classList.toggle('read', on);
-  });
+  (r.items || []).forEach(function(li, i){ markItem(li, next.indexOf(i) > -1); });
   renderReaderHead(); renderDays();
   if (!was && dayStats(r.idx, r.d).complete) buzz([12, 50, 18]);
 }
-pesukimEl.addEventListener('click', function(e){
-  var b = e.target.closest('.pk-check'); if (!b || !reader) return;
-  var i = +b.dataset.i, cur = doneList(reader.idx, reader.d).slice(), at = cur.indexOf(i);
-  if (at > -1) cur.splice(at, 1); else cur.push(i);
-  buzz(6);
-  setDone(cur);
-});
+/* Reopening a day that's partly read starts at the first unread pasuk. */
+function resumeAtFirstUnread(){
+  var r = reader, done = doneList(r.idx, r.d);
+  if (!done.length || done.length >= r.list.length) return;
+  for (var i = 0; i < r.items.length; i++){
+    if (done.indexOf(i) === -1){
+      var target = i > 0 ? r.items[i] : null; if (!target) return;
+      readerBody.scrollTop += target.getBoundingClientRect().top - readerBody.getBoundingClientRect().top - 12;
+      return;
+    }
+  }
+}
+
+/* Scroll-based progress. A pasuk counts as read once it has been on screen for
+   SEEN_MS in total and has scrolled up past the reading line, 30% from the top.
+   Flicking straight to the end doesn't count, because the pesukim weren't on screen long enough. */
+var SEEN_MS = 1500, LINE = 0.3, track = null;
+function startTracking(){
+  stopTracking();
+  track = { seen: reader.list.map(function(){ return 0; }), last: performance.now(), raf: 0 };
+  track.timer = setInterval(tick, 250);
+  readerBody.addEventListener('scroll', onReaderScroll, { passive: true });
+}
+function stopTracking(){
+  if (!track) return;
+  clearInterval(track.timer); cancelAnimationFrame(track.raf);
+  readerBody.removeEventListener('scroll', onReaderScroll);
+  track = null;
+}
+function onReaderScroll(){
+  if (track && !track.raf) track.raf = requestAnimationFrame(function(){ if (track){ track.raf = 0; tick(); } });
+}
+function tick(){
+  if (!track || !reader || !reader.items) return;
+  var now = performance.now(), dt = Math.min(now - track.last, 500); track.last = now;
+  if (document.hidden) return;
+  var box = readerBody.getBoundingClientRect(), line = box.top + box.height * LINE;
+  var done = doneList(reader.idx, reader.d), added = [];
+  reader.items.forEach(function(li, i){
+    var rc = li.getBoundingClientRect();
+    if (rc.bottom > box.top && rc.top < box.bottom) track.seen[i] += dt;
+    if (rc.bottom < line && track.seen[i] >= SEEN_MS && done.indexOf(i) === -1) added.push(i);
+  });
+  if (added.length) setDone(done.concat(added));
+}
+
 $('#markAll').addEventListener('click', function(){
   if (!reader) return;
   setDone(dayStats(reader.idx, reader.d).complete ? [] : reader.list.map(function(_, i){ return i; }));
 });
-taamimEl.addEventListener('change', function(){
-  store.taamim = taamimEl.checked; save();
-  if (reader && reader.text) renderPesukim();
-});
+function rerenderKeepingPlace(){
+  if (!reader || !reader.text) return;
+  /* Keep the pasuk at the top of the screen in place when the layout changes. */
+  var box = readerBody.getBoundingClientRect(), anchor = 0;
+  reader.items.forEach(function(li, i){ if (li.getBoundingClientRect().top <= box.top + 1) anchor = i; });
+  renderPesukim();
+  if (readerBody.scrollTop > 0) readerBody.scrollTop += reader.items[anchor].getBoundingClientRect().top - box.top;
+}
+taamimEl.addEventListener('change', function(){ store.taamim = taamimEl.checked; save(); rerenderKeepingPlace(); });
+doubleEl.addEventListener('change', function(){ store.double = doubleEl.checked; save(); renderHow(); rerenderKeepingPlace(); });
 
 /* ---------- Organizer sheet ---------- */
 var lockView = $('#lockForm'), orgContent = $('#orgContent'), codeInput = $('#orgCode'), eCode = $('#eCode');
@@ -585,7 +651,7 @@ $('#clearBtn').addEventListener('click', function(){
     return;
   }
   clearTimeout(clearArmed); clearArmed = null; b.textContent = 'Clear all prototype data';
-  store = blankStore(); taamimEl.checked = true; userChecked = false; save(); renderAll();
+  store = blankStore(); taamimEl.checked = true; doubleEl.checked = false; userChecked = false; save(); renderAll();
 });
 
 /* ---------- Orchestration ---------- */

@@ -50,6 +50,32 @@ CSM.DAYS = [
   ['שביעי','Shevi’i','Shabbos','Shabbos']
 ];
 
+/* ---------- Entry window ----------
+   Pure function of the group's local wall-clock time. server/Code.gs has an identical copy;
+   keep the two in step (tests/window.test.js checks they agree). */
+CSM.windowAt = function(now){
+  var C = CSM.CFG, DAY = 864e5;
+  var START = new Date(C.start[0], C.start[1], C.start[2]);
+  function addDays(d, n, h, m){ return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, h || 0, m || 0); }
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var sat = addDays(today, (6 - today.getDay() + 7) % 7);
+  var closeOff = (C.close.dow - 6 + 7) % 7;
+  function closesOf(s){ return addDays(s, closeOff, C.close.h, C.close.m); }
+  /* Last week's parsha stays open until its deadline passes */
+  var prev = addDays(sat, -7);
+  var prevIdx = Math.round((prev - START) / (7 * DAY));
+  var target = (prevIdx >= 0 && now < closesOf(prev)) ? prev : sat;
+  var opens = addDays(target, C.open.dow - 6, C.open.h, C.open.m);
+  var closes = closesOf(target);
+  var raw = Math.round((target - START) / (7 * DAY));
+  return {
+    raw: raw, idx: Math.max(0, raw), opens: opens, closes: closes,
+    state: now < opens ? 'before' : (now < closes ? 'open' : 'closed'),
+    /* Daily learning always follows the coming Shabbos's parsha */
+    learnIdx: Math.round((sat - START) / (7 * DAY)), dow: today.getDay()
+  };
+};
+
 /* ---------- Helpers over the data ---------- */
 function parseRange(s){
   var m = /^(\d+):(\d+)-(\d+):(\d+)$/.exec(s);

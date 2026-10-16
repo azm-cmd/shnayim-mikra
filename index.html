@@ -37,14 +37,13 @@
       <svg aria-hidden="true"><use href="#i-book"/></svg>
       <span>Chevra Shnayim Mikra</span>
     </a>
-    <nav class="links" aria-label="Sections">
+    <nav class="links" id="links" aria-label="Sections">
       <a href="#this-week">This week</a>
       <a href="#sefer">Sefer</a>
       <a href="#raffles">Raffles</a>
       <a href="#winners">Winners</a>
-      <button class="btn-pill" id="openOrg" type="button">Organizer</button>
     </nav>
-    <button class="btn-pill" id="openOrgSmall" type="button" hidden>Organizer</button>
+    <button class="btn-pill" id="openOrg" type="button">Organizer</button>
   </div>
 </header>
 
@@ -100,12 +99,20 @@
                 <p class="err" id="eName" role="alert"></p>
               </div>
               <div class="field">
-                <label for="fContact">Email or phone number</label>
-                <input id="fContact" name="contact" type="text" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="80">
+                <div class="field-top">
+                  <label for="fContact" id="lContact">Email</label>
+                  <div class="seg mini" id="contactType" role="radiogroup" aria-label="Contact by">
+                    <button type="button" role="radio" data-v="email" aria-checked="true">Email</button>
+                    <button type="button" role="radio" data-v="phone" aria-checked="false">Phone</button>
+                  </div>
+                </div>
+                <input id="fContact" name="contact" type="email" inputmode="email" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="80">
                 <p class="hint" id="hContact">Used only to reach the winner.</p>
                 <p class="err" id="eContact" role="alert"></p>
               </div>
-              <button class="btn" type="submit">Enter the raffle</button>
+              <div class="hp" aria-hidden="true"><label for="fWebsite">Website</label><input id="fWebsite" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+              <p class="err" id="eForm" role="alert"></p>
+              <button class="btn" type="submit" id="submitBtn">Enter the raffle</button>
             </form>
           </div>
         </div>
@@ -231,56 +238,62 @@
       </div>
     </header>
     <div class="sheet-body" id="sheetBody">
-      <form class="lock" id="lockForm" novalidate>
+      <div class="lock" id="signIn" hidden>
         <div>
-          <h3 style="margin-bottom:4px">Enter organizer code</h3>
-          <p class="fine">Only organizers can see entries and draw winners.</p>
+          <h3 style="margin-bottom:4px">Sign in as an organizer</h3>
+          <p class="fine">Use the Google account your group admin added to the organizer list. Only organizers can see entries and draw winners.</p>
         </div>
-        <div class="field">
-          <label for="orgCode">Code</label>
-          <input id="orgCode" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32">
-          <p class="err" id="eCode" role="alert"></p>
-        </div>
-        <button class="btn" type="submit">Unlock</button>
-      </form>
+        <div class="gbtn" id="gBtn"></div>
+        <p class="err" id="eSignIn" role="alert"></p>
+      </div>
+      <div class="org-msg" id="orgMsg" hidden></div>
       <div class="org-content" id="orgContent" hidden>
-      <div class="draw">
-        <div class="row"><b id="orgParsha"></b><span id="orgCount"></span></div>
-        <div class="winner" id="winnerBox" hidden aria-live="polite">
-          <small id="winnerLabel">Winner</small>
-          <strong id="drawName"></strong>
-          <span id="drawContact"></span>
+        <p class="who" id="orgWho"></p>
+        <div class="draw">
+          <div class="row"><b id="orgParsha"></b><span id="orgCount"></span></div>
+          <div class="winner" id="winnerBox" hidden aria-live="polite">
+            <small id="winnerLabel">Winner</small>
+            <strong id="drawName"></strong>
+            <span id="drawContact"></span>
+          </div>
+          <p class="err" id="eDraw" role="alert"></p>
+          <button class="btn" id="drawBtn" type="button">Draw $50 winner</button>
         </div>
-        <button class="btn" id="drawBtn" type="button">Draw $50 winner</button>
-      </div>
 
-      <div>
-        <h3>Entries this week</h3>
-        <ul class="elist" id="elist"></ul>
-        <p class="fine" id="eempty">No entries yet. They appear here as members check in.</p>
-      </div>
-
-      <div class="tools">
-        <h3 style="margin-bottom:0">Prototype tools</h3>
-        <div class="seg" id="seg" role="radiogroup" aria-label="Entry window">
-          <button type="button" role="radio" data-v="auto">Auto</button>
-          <button type="button" role="radio" data-v="open">Open</button>
-          <button type="button" role="radio" data-v="closed">Closed</button>
+        <div>
+          <h3 id="elistTitle">Entries this week</h3>
+          <ul class="elist" id="elist"></ul>
+          <p class="fine" id="eempty">No entries yet. They appear here as members check in.</p>
+          <p class="fine" id="emore" hidden></p>
         </div>
-        <p class="fine">Auto follows the real weekly schedule. Open and Closed let you preview each state.</p>
-        <button class="btn ghost" id="demoBtn" type="button">Add 5 demo entries</button>
-        <button class="btn ghost" id="clearBtn" type="button">Clear all prototype data</button>
-        <button class="btn ghost" id="lockBtn" type="button">Lock organizer</button>
-        <p class="fine">Prototype only. Entries and winners are saved on this device, not on a server.</p>
-      </div>
+
+        <div class="tools" id="liveTools" hidden>
+          <a class="btn ghost linkbtn" id="sheetLink" href="#" target="_blank" rel="noopener">Open the Google Sheet</a>
+          <button class="btn ghost" id="refreshBtn" type="button">Refresh entries</button>
+          <button class="btn ghost" id="signOutBtn" type="button">Sign out</button>
+        </div>
+
+        <div class="tools" id="demoTools" hidden>
+          <h3 style="margin-bottom:0">Demo tools</h3>
+          <div class="seg" id="seg" role="radiogroup" aria-label="Entry window">
+            <button type="button" role="radio" data-v="auto">Auto</button>
+            <button type="button" role="radio" data-v="open">Open</button>
+            <button type="button" role="radio" data-v="closed">Closed</button>
+          </div>
+          <p class="fine">Auto follows the real weekly schedule. Open and Closed let you preview each state.</p>
+          <button class="btn ghost" id="demoBtn" type="button">Add 5 demo entries</button>
+          <button class="btn ghost" id="clearBtn" type="button">Clear all demo data</button>
+        </div>
       </div>
     </div>
   </section>
 </div>
 
 
+<script src="js/config.js"></script>
 <script src="js/data.js"></script>
 <script src="js/sefaria.js"></script>
+<script src="js/service.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

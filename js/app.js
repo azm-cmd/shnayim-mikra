@@ -8,11 +8,13 @@ var START = new Date(CFG.start[0], CFG.start[1], CFG.start[2]);
 
 function $(s){ return document.querySelector(s); }
 var RM = window.matchMedia('(prefers-reduced-motion: reduce)');
+/* Demo mode: no live service configured, so entries and winners stay on this device. */
+var isDemo = !CSM.live;
 function buzz(p){ try { if (navigator.vibrate) navigator.vibrate(p); } catch(e){} }
 
 /* ---------- Storage (best effort) ---------- */
 var KEY = 'csm.prototype.v1';
-function blankStore(){ return { entries: [], winners: [], mine: {}, override: 'auto', progress: {}, taamim: true, double: false }; }
+function blankStore(){ return { entries: [], winners: [], mine: {}, override: 'auto', progress: {}, taamim: true, double: false, contactType: 'email', winnersCache: [] }; }
 var store = blankStore();
 try {
   var raw = localStorage.getItem(KEY);
@@ -26,33 +28,17 @@ function nowTZ(){
   var p = {}; dtf.formatToParts(new Date()).forEach(function(x){ p[x.type] = x.value; });
   return new Date(+p.year, +p.month - 1, +p.day, (+p.hour) % 24, +p.minute, +p.second);
 }
-function addDays(d, n, h, m){ return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n, h || 0, m || 0); }
 function time12(h, m){ return ((h % 12) || 12) + ':' + String(m).padStart(2,'0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
 var OPEN_LABEL  = DOW[CFG.open.dow]  + ' ' + time12(CFG.open.h,  CFG.open.m)  + ' ' + CFG.tzLabel;
 var CLOSE_PHRASE = 'before ' + DOW[CFG.close.dow] + ' of the following week';
 
 function view(){
-  var now = nowTZ();
-  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  var sat = addDays(today, (6 - today.getDay() + 7) % 7);
-  var closeOff = (CFG.close.dow - 6 + 7) % 7;
-  function closesOf(s){ return addDays(s, closeOff, CFG.close.h, CFG.close.m); }
-  /* Last week's parsha stays open until its deadline passes */
-  var prev = addDays(sat, -7);
-  var prevIdx = Math.round((prev - START) / (7 * DAY));
-  var target = (prevIdx >= 0 && now < closesOf(prev)) ? prev : sat;
-  var opens  = addDays(target, CFG.open.dow - 6, CFG.open.h, CFG.open.m);
-  var closes = closesOf(target);
-  var raw = Math.round((target - START) / (7 * DAY));
-  var real = now < opens ? 'before' : (now < closes ? 'open' : 'closed');
-  var state = store.override === 'open' ? 'open' : (store.override === 'closed' ? 'closed' : real);
-  var idx = Math.max(0, raw);
+  var now = nowTZ(), w = CSM.windowAt(now);
+  var state = isDemo && store.override === 'open' ? 'open' : (isDemo && store.override === 'closed' ? 'closed' : w.state);
   /* Organizer works on the most recent parsha whose window has opened */
-  var orgIdx = (state === 'before' && idx > 0) ? idx - 1 : idx;
-  /* Daily learning always follows the coming Shabbos's parsha */
-  var learnIdx = Math.round((sat - START) / (7 * DAY));
-  return { now: now, opens: opens, closes: closes, idx: idx, orgIdx: orgIdx, complete: raw > 11, state: state, real: real,
-           learnIdx: learnIdx, dow: today.getDay() };
+  var orgIdx = (state === 'before' && w.idx > 0) ? w.idx - 1 : w.idx;
+  return { now: now, opens: w.opens, closes: w.closes, idx: w.idx, orgIdx: orgIdx, complete: w.raw > 11, state: state, real: w.state,
+           learnIdx: w.learnIdx, dow: w.dow };
 }
 function fmt(ms){
   var s = Math.max(0, Math.floor(ms / 1000));
@@ -63,9 +49,14 @@ function fmt(ms){
 }
 
 /* ---------- Data helpers ---------- */
-function entriesFor(idx){ return store.entries.filter(function(e){ return e.idx === idx; }); }
-function mineEntry(idx){ var id = store.mine[idx]; return id ? store.entries.find(function(e){ return e.id === id; }) : null; }
-function winnerFor(idx){ return store.winners.find(function(w){ return w.idx === idx; }); }
+/* This device's entry for a parsha: { id, token, contact } */
+function mineEntry(idx){
+  var m = store.mine[idx];
+  if (typeof m === 'string'){ var e = store.entries.find(function(x){ return x.id === m; }); m = e ? { id: e.id, token: '', contact: e.contact } : null; }
+  return m || null;
+}
+var winners = isDemo ? store.winners : (store.winnersCache || []);
+function winnerFor(idx){ return winners.find(function(w){ return w.idx === idx; }); }
 function parseContact(v){
   v = v.trim();
   if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return { type:'email', value:v.toLowerCase(), display:v };
@@ -93,6 +84,43 @@ function checkIcon(){
   use.setAttribute('href', '#i-check'); svg.appendChild(use);
   return svg;
 }
+function fail(code, message){ return Object.assign(new Error(message), { code: code }); }
+
+/* ---------- Raffle service ----------
+   Live: the Google Sheet behind server/Code.gs (js/service.js). Demo: this device's storage.
+   Both return promises with the same shapes. */
+var local = {
+  submit: function(idx, name, contact){
+    var c = parseContact(contact), key = c.type + ':' + c.value;
+    if (store.entries.some(function(x){ return x.idx === idx && x.key === key; }))
+      return Promise.reject(fail('duplicate', 'That ' + (c.type === 'email' ? 'email' : 'number') + ' is already entered for Parshas ' + pName(idx)[1] + '.'));
+    var e = { id: uid(), idx: idx, name: name, contact: c.display, key: key, ts: Date.now() };
+    store.entries.push(e); save();
+    return Promise.resolve({ id: e.id, token: '' });
+  },
+  withdraw: function(idx, mine){ store.entries = store.entries.filter(function(x){ return x.id !== mine.id; }); save(); return Promise.resolve({}); },
+  winners: function(){ return Promise.resolve(store.winners); },
+  org: function(idx){
+    var list = store.entries.filter(function(e){ return e.idx === idx; });
+    var w = store.winners.find(function(x){ return x.idx === idx; });
+    return Promise.resolve({ email: '', idx: idx, total: list.length, entries: list.slice().reverse(), winner: w ? { name: w.name, contact: w.contact } : null, sheetUrl: '' });
+  },
+  draw: function(idx){
+    var list = store.entries.filter(function(e){ return e.idx === idx; });
+    if (!list.length) return Promise.reject(fail('empty', 'No entries yet.'));
+    var pick = list[randInt(list.length)];
+    store.winners = store.winners.filter(function(x){ return x.idx !== idx; });
+    store.winners.push({ idx: idx, name: pick.name, contact: pick.contact, ts: Date.now() }); save();
+    winners = store.winners;
+    return Promise.resolve({ winner: { name: pick.name, contact: pick.contact }, total: list.length });
+  },
+  remove: function(idx, id){
+    store.entries = store.entries.filter(function(x){ return x.id !== id; });
+    Object.keys(store.mine).forEach(function(k){ var m = mineEntry(k); if (m && m.id === id) delete store.mine[k]; });
+    save(); return Promise.resolve({});
+  }
+};
+var api = isDemo ? local : CSM.remote;
 
 /* ---------- Daily progress ---------- */
 function progKey(idx, d){ return idx + ':' + d; }
@@ -179,12 +207,12 @@ function renderDays(){
 
 /* ---------- Check-in card ---------- */
 var chk = $('#chk'), reveal = $('#reveal'), ticket = $('#ticket'), note = $('#note');
-var fName = $('#fName'), fContact = $('#fContact'), eName = $('#eName'), eContact = $('#eContact');
-var userChecked = false;
+var fName = $('#fName'), fContact = $('#fContact'), eName = $('#eName'), eContact = $('#eContact'), eForm = $('#eForm');
+var submitBtn = $('#submitBtn'), userChecked = false, sending = false;
 
 function renderCount(v){
   var c = $('#count');
-  if (store.override !== 'auto' && v.real !== v.state){ c.textContent = 'Preview mode'; return; }
+  if (isDemo && store.override !== 'auto' && v.real !== v.state){ c.textContent = 'Preview mode'; return; }
   if (v.state === 'before') c.textContent = 'Opens in ' + fmt(v.opens - v.now);
   else if (v.state === 'open') c.textContent = 'Closes in ' + fmt(v.closes - v.now);
   else c.textContent = 'Entries closed';
@@ -224,41 +252,72 @@ chk.addEventListener('change', function(){
   renderCard();
 });
 
+/* Email or phone: each gets its own keyboard */
+var contactSeg = $('#contactType');
+function setContactType(t){
+  store.contactType = t === 'phone' ? 'phone' : 'email';
+  var phone = store.contactType === 'phone';
+  fContact.type = phone ? 'tel' : 'email';
+  fContact.inputMode = phone ? 'tel' : 'email';
+  fContact.autocomplete = phone ? 'tel' : 'email';
+  fContact.placeholder = phone ? '(555) 555-0123' : 'name@example.com';
+  $('#lContact').textContent = phone ? 'Phone number' : 'Email';
+  Array.prototype.forEach.call(contactSeg.children, function(b){ b.setAttribute('aria-checked', String(b.dataset.v === store.contactType)); });
+  setErr(fContact, eContact, '');
+}
+contactSeg.addEventListener('click', function(e){
+  var b = e.target.closest('button'); if (!b || b.dataset.v === store.contactType) return;
+  setContactType(b.dataset.v); save(); fContact.focus();
+});
+
 function setErr(input, errEl, msg){
   errEl.textContent = msg || '';
   if (msg) input.setAttribute('aria-invalid', 'true'); else input.removeAttribute('aria-invalid');
   if (input === fContact) $('#hContact').hidden = !!msg;
 }
 function checkName(){ var ok = fName.value.trim().length >= 2; setErr(fName, eName, ok ? '' : 'Enter your name.'); return ok; }
-function checkContact(){ var c = parseContact(fContact.value); setErr(fContact, eContact, c ? '' : 'Enter a valid email address or phone number.'); return c; }
+function checkContact(){
+  var c = parseContact(fContact.value), want = store.contactType;
+  var ok = c && c.type === want;
+  setErr(fContact, eContact, ok ? '' : (want === 'phone' ? 'Enter a phone number with area code.' : 'Enter a valid email address, like name@example.com.'));
+  return ok ? c : null;
+}
 fName.addEventListener('blur', function(){ if (fName.value) checkName(); });
 fContact.addEventListener('blur', function(){ if (fContact.value) checkContact(); });
 fName.addEventListener('input', function(){ if (fName.getAttribute('aria-invalid') && fName.value.trim().length >= 2) setErr(fName, eName, ''); });
-fContact.addEventListener('input', function(){ if (fContact.getAttribute('aria-invalid') && parseContact(fContact.value)) setErr(fContact, eContact, ''); });
+fContact.addEventListener('input', function(){ var c = parseContact(fContact.value); if (fContact.getAttribute('aria-invalid') && c && c.type === store.contactType) setErr(fContact, eContact, ''); });
 
+function setSending(on){ sending = on; submitBtn.disabled = on; submitBtn.textContent = on ? 'Sending…' : 'Enter the raffle'; }
 $('#entryForm').addEventListener('submit', function(e){
   e.preventDefault();
+  if (sending) return;
   var v = view(); if (v.state !== 'open') return;
+  eForm.textContent = '';
   var okName = checkName(), c = checkContact();
   if (!okName){ fName.focus(); return; }
   if (!c){ fContact.focus(); return; }
-  var key = c.type + ':' + c.value;
-  if (store.entries.some(function(x){ return x.idx === v.idx && x.key === key; })){
-    setErr(fContact, eContact, 'That ' + (c.type === 'email' ? 'email' : 'number') + ' is already entered for Parshas ' + pName(v.idx)[1] + '.');
-    fContact.focus(); return;
-  }
-  var entry = { id: uid(), idx: v.idx, name: fName.value.trim(), contact: c.display, key: key, ts: Date.now() };
-  store.entries.push(entry); store.mine[v.idx] = entry.id; save();
-  fName.value = ''; fContact.value = '';
-  buzz([10, 40, 14]);
-  renderCard(); renderOrganizer();
-  ticket.classList.remove('pop'); void ticket.offsetWidth; ticket.classList.add('pop');
+  var idx = v.idx, name = fName.value.trim();
+  setSending(true);
+  api.submit(idx, name, c.display, $('#fWebsite').value).then(function(res){
+    store.mine[idx] = { id: res.id, token: res.token || '', contact: c.display }; save();
+    fName.value = ''; fContact.value = '';
+    buzz([10, 40, 14]);
+    renderCard(); if (orgSheet.isOpen) loadOrg();
+    ticket.classList.remove('pop'); void ticket.offsetWidth; ticket.classList.add('pop');
+  }, function(err){
+    if (err.code === 'duplicate' || err.code === 'bad_contact'){ setErr(fContact, eContact, err.message); fContact.focus(); }
+    else if (err.code === 'bad_name'){ setErr(fName, eName, err.message); fName.focus(); }
+    else { eForm.textContent = err.message; if (err.code === 'closed') renderAll(); }
+  }).then(function(){ setSending(false); });
 });
 $('#withdraw').addEventListener('click', function(){
-  var v = view(), m = mineEntry(v.idx);
-  if (m){ store.entries = store.entries.filter(function(x){ return x.id !== m.id; }); }
-  delete store.mine[v.idx]; userChecked = false; save();
-  renderCard(); renderOrganizer();
+  var v = view(), m = mineEntry(v.idx), b = $('#withdraw');
+  if (!m) return;
+  b.disabled = true;
+  api.withdraw(v.idx, m).then(function(){
+    delete store.mine[v.idx]; userChecked = false; save();
+    renderCard(); if (orgSheet.isOpen) loadOrg();
+  }, function(err){ $('#ticketText').textContent = err.message; }).then(function(){ b.disabled = false; });
 });
 
 /* ---------- Sefer tiles ---------- */
@@ -283,7 +342,7 @@ function renderSefer(){
 /* ---------- Winners ---------- */
 function renderWinners(){
   var v = view(), ul = $('#winnersList'); ul.textContent = '';
-  var list = store.winners.slice().sort(function(a, b){ return b.idx - a.idx; });
+  var list = winners.slice().sort(function(a, b){ return b.idx - a.idx; });
   list.forEach(function(w){
     var p = pName(w.idx);
     ul.appendChild(el('li', null, [
@@ -294,6 +353,13 @@ function renderWinners(){
   var empty = $('#winnersEmpty');
   empty.hidden = list.length > 0;
   empty.textContent = v.complete ? 'No weekly winners recorded.' : 'No winners yet. The first $' + CFG.prize + ' winner is drawn after entries close for Parshas ' + pName(v.idx)[1] + '.';
+}
+function loadWinners(){
+  return api.winners().then(function(list){
+    winners = list;
+    if (!isDemo){ store.winnersCache = list; save(); }
+    renderWinners(); renderCard();
+  }, function(){ /* keep the last list we had */ });
 }
 
 /* ---------- Bottom sheet: spring open/close, drag to dismiss ---------- */
@@ -551,129 +617,164 @@ function rerenderKeepingPlace(){
 taamimEl.addEventListener('change', function(){ store.taamim = taamimEl.checked; save(); rerenderKeepingPlace(); });
 doubleEl.addEventListener('change', function(){ store.double = doubleEl.checked; save(); renderHow(); rerenderKeepingPlace(); });
 
-/* ---------- Organizer sheet ---------- */
-var lockView = $('#lockForm'), orgContent = $('#orgContent'), codeInput = $('#orgCode'), eCode = $('#eCode');
-var unlocked = false, fails = 0, lockedUntil = 0, drawing = false;
-try { unlocked = sessionStorage.getItem('csm.org') === '1'; } catch(e){}
-function applyLock(){ lockView.hidden = unlocked; orgContent.hidden = !unlocked; }
+/* ---------- Organizer sheet ----------
+   Live: Sign in with Google; the server checks the account against its organizer list.
+   Demo: opens straight away and works on this device's data. */
+var signInEl = $('#signIn'), orgMsg = $('#orgMsg'), orgContent = $('#orgContent'), eSignIn = $('#eSignIn');
+var org = { data: null, idx: -1, loading: false }, drawing = false;
 var orgSheet = Sheet($('#sheetRoot'), {
-  onOpen: function(){ applyLock(); renderOrganizer(); },
-  focus: function(){ return unlocked ? $('#sheet') : codeInput; }
-});
-
-/* Organizer code gate (prototype). Replace with real sign-in later. */
-lockView.addEventListener('submit', function(e){
-  e.preventDefault();
-  var now = Date.now();
-  if (now < lockedUntil){ eCode.textContent = 'Too many attempts. Try again in ' + Math.ceil((lockedUntil - now) / 1000) + ' seconds.'; return; }
-  if (codeInput.value.trim() === CFG.orgCode){
-    unlocked = true; fails = 0; codeInput.value = ''; eCode.textContent = ''; codeInput.removeAttribute('aria-invalid');
-    try { sessionStorage.setItem('csm.org', '1'); } catch(e){}
-    applyLock(); renderOrganizer();
-    buzz(10);
-  } else {
-    fails++; codeInput.setAttribute('aria-invalid', 'true');
-    if (fails >= 5){ lockedUntil = now + 30000; fails = 0; eCode.textContent = 'Too many attempts. Try again in 30 seconds.'; }
-    else eCode.textContent = 'Incorrect code.';
-    codeInput.select();
-  }
-});
-codeInput.addEventListener('input', function(){ if (codeInput.getAttribute('aria-invalid')){ codeInput.removeAttribute('aria-invalid'); eCode.textContent = ''; } });
-$('#lockBtn').addEventListener('click', function(){
-  unlocked = false; try { sessionStorage.removeItem('csm.org'); } catch(e){}
-  applyLock(); $('#sheet').focus({ preventScroll: true });
+  onOpen: function(){ startOrg(); },
+  focus: function(){ return $('#sheet'); }
 });
 $('#openOrg').addEventListener('click', orgSheet.open);
-$('#openOrgSmall').addEventListener('click', orgSheet.open);
+
+function showOrg(which, msg){
+  signInEl.hidden = which !== 'signin';
+  orgContent.hidden = which !== 'content';
+  orgMsg.hidden = which !== 'msg';
+  if (which === 'msg'){ orgMsg.textContent = ''; [].concat(msg).forEach(function(n){ orgMsg.appendChild(typeof n === 'string' ? el('p', { text: n }) : n); }); }
+}
+function startOrg(){
+  if (isDemo || CSM.auth.token()) return loadOrg();
+  if (!CSM.auth.configured) return showOrg('msg', ['Organizer sign-in isn’t set up yet.', el('p', { class: 'fine', text: 'Add the Google client ID to js/config.js. SETUP.md explains each step.' })]);
+  showSignIn('');
+}
+function showSignIn(msg){
+  org.data = null;
+  eSignIn.textContent = msg || '';
+  showOrg('signin');
+  CSM.auth.renderButton($('#gBtn')).catch(function(e){ eSignIn.textContent = e.message; });
+}
+if (CSM.auth) CSM.auth.onChange(function(){ if (orgSheet.isOpen) startOrg(); });
+
+function loadOrg(){
+  var idx = view().orgIdx;
+  if (org.idx !== idx) org.data = null;
+  org.idx = idx;
+  if (!org.data) showOrg('msg', 'Loading entries…');
+  org.loading = true;
+  return api.org(idx).then(function(d){
+    org.loading = false; org.data = d;
+    renderOrganizer();
+  }, function(err){
+    org.loading = false;
+    if (err.code === 'signin'){ CSM.auth.expire(); showSignIn(err.message); }
+    else if (err.code === 'not_organizer'){ CSM.auth.signOut(); showSignIn(err.message); }
+    else {
+      var retry = el('button', { type: 'button', class: 'btn-pill', text: 'Try again' });
+      retry.addEventListener('click', loadOrg);
+      showOrg('msg', [err.message, retry]);
+    }
+  });
+}
 
 function renderOrganizer(){
-  var v = { idx: view().orgIdx }, p = pName(v.idx), list = entriesFor(v.idx), w = winnerFor(v.idx);
+  var d = org.data; if (!d) return;
+  showOrg('content');
+  var p = pName(d.idx), w = d.winner;
+  $('#orgWho').textContent = isDemo ? 'Demo mode. Entries are saved on this device only. To go live, connect a Google Sheet (see SETUP.md).' : 'Signed in as ' + d.email;
   $('#orgParsha').textContent = 'Parshas ' + p[1];
-  $('#orgCount').textContent = list.length === 1 ? '1 entry' : list.length + ' entries';
-  $('#drawBtn').disabled = !list.length || drawing;
+  $('#orgCount').textContent = d.total === 1 ? '1 entry' : d.total.toLocaleString('en-US') + ' entries';
+  $('#drawBtn').disabled = !d.total || drawing;
   $('#drawBtn').textContent = w ? 'Draw again' : 'Draw $' + CFG.prize + ' winner';
   if (!drawing){
     var box = $('#winnerBox'); box.hidden = !w;
     if (w){ $('#winnerLabel').textContent = '$' + CFG.prize + ' winner'; $('#drawName').textContent = w.name; $('#drawContact').textContent = w.contact; }
   }
   var ul = $('#elist'); ul.textContent = '';
-  list.forEach(function(e){
+  d.entries.forEach(function(e){
     var rm = el('button', { type: 'button', text: 'Remove', 'aria-label': 'Remove entry for ' + e.name });
     rm.addEventListener('click', function(){
-      store.entries = store.entries.filter(function(x){ return x.id !== e.id; });
-      Object.keys(store.mine).forEach(function(k){ if (store.mine[k] === e.id) delete store.mine[k]; });
-      save(); renderAll();
+      rm.disabled = true;
+      api.remove(d.idx, e.id).then(loadOrg, function(err){ rm.disabled = false; $('#eDraw').textContent = err.message; });
     });
     ul.appendChild(el('li', null, [ el('div', null, [ el('b', { text: e.name }), el('span', { text: e.contact }) ]), rm ]));
   });
-  $('#eempty').hidden = list.length > 0;
+  $('#eempty').hidden = d.total > 0;
+  var more = $('#emore');
+  more.hidden = d.entries.length >= d.total;
+  more.textContent = 'Showing the latest ' + d.entries.length + ' of ' + d.total.toLocaleString('en-US') + '. The Google Sheet has every entry.';
+  $('#liveTools').hidden = isDemo; $('#demoTools').hidden = !isDemo;
+  if (d.sheetUrl) $('#sheetLink').href = d.sheetUrl;
   Array.prototype.forEach.call($('#seg').children, function(b){ b.setAttribute('aria-checked', String(b.dataset.v === store.override)); });
 }
 
 $('#drawBtn').addEventListener('click', function(){
-  var v = { idx: view().orgIdx }, list = entriesFor(v.idx); if (!list.length || drawing) return;
-  var pick = list[randInt(list.length)], out = $('#drawName');
-  function finish(){
-    out.textContent = pick.name; $('#drawContact').textContent = pick.contact;
-    store.winners = store.winners.filter(function(x){ return x.idx !== v.idx; });
-    store.winners.push({ idx: v.idx, name: pick.name, contact: pick.contact, ts: Date.now() });
-    save(); drawing = false; renderAll();
-    buzz([12, 50, 18]);
-  }
-  if (RM.matches || list.length === 1){ finish(); return; }
+  var d = org.data; if (!d || !d.total || drawing) return;
+  var names = d.entries.map(function(e){ return e.name; }), out = $('#drawName');
+  $('#eDraw').textContent = '';
   drawing = true; $('#drawBtn').disabled = true; $('#winnerBox').hidden = false; $('#winnerLabel').textContent = 'Drawing';
-  var delay = 60, t0 = performance.now();
+  var t0 = performance.now(), result = null, failed = null, delay = 60;
+  api.draw(d.idx).then(function(r){ result = r; }, function(err){ failed = err; });
+  function land(){
+    drawing = false;
+    if (failed){ $('#eDraw').textContent = failed.message; $('#winnerBox').hidden = !d.winner; renderOrganizer(); return; }
+    out.textContent = result.winner.name; $('#drawContact').textContent = result.winner.contact;
+    $('#winnerLabel').textContent = '$' + CFG.prize + ' winner';
+    d.winner = result.winner;
+    buzz([12, 50, 18]);
+    renderOrganizer(); loadWinners();
+  }
   (function roll(){
-    out.textContent = list[randInt(list.length)].name; $('#drawContact').textContent = '';
+    if (!RM.matches && names.length > 1){ out.textContent = names[randInt(names.length)]; $('#drawContact').textContent = ''; }
     delay *= 1.12;
-    if (performance.now() - t0 < 1500) setTimeout(roll, delay); else finish();
+    if ((result || failed) && performance.now() - t0 > 1500) land(); else setTimeout(roll, delay > 400 ? 400 : delay);
   })();
 });
+$('#refreshBtn').addEventListener('click', loadOrg);
+$('#signOutBtn').addEventListener('click', function(){ CSM.auth.signOut(); });
 $('#seg').addEventListener('click', function(e){
   var b = e.target.closest('button'); if (!b) return;
-  store.override = b.dataset.v; save(); renderAll();
+  store.override = b.dataset.v; save(); renderAll(); loadOrg();
 });
 $('#demoBtn').addEventListener('click', function(){
-  var v = { idx: view().orgIdx }, names = ['Chana Levy','Yosef Katz','Devorah Stern','Meir Goldberg','Rivka Adler'];
+  var idx = view().orgIdx, names = ['Chana Levy','Yosef Katz','Devorah Stern','Meir Goldberg','Rivka Adler'];
   names.forEach(function(n){
     var email = n.split(' ')[0].toLowerCase() + '@example.com', key = 'email:' + email;
-    if (!store.entries.some(function(x){ return x.idx === v.idx && x.key === key; }))
-      store.entries.push({ id: uid(), idx: v.idx, name: n, contact: email, key: key, ts: Date.now() });
+    if (!store.entries.some(function(x){ return x.idx === idx && x.key === key; }))
+      store.entries.push({ id: uid(), idx: idx, name: n, contact: email, key: key, ts: Date.now() });
   });
-  save(); renderAll();
+  save(); loadOrg();
 });
 var clearArmed = null;
 $('#clearBtn').addEventListener('click', function(){
   var b = $('#clearBtn');
   if (!clearArmed){
     b.textContent = 'Tap again to clear everything';
-    clearArmed = setTimeout(function(){ clearArmed = null; b.textContent = 'Clear all prototype data'; }, 3000);
+    clearArmed = setTimeout(function(){ clearArmed = null; b.textContent = 'Clear all demo data'; }, 3000);
     return;
   }
-  clearTimeout(clearArmed); clearArmed = null; b.textContent = 'Clear all prototype data';
-  store = blankStore(); taamimEl.checked = true; doubleEl.checked = false; userChecked = false; save(); renderAll();
+  clearTimeout(clearArmed); clearArmed = null; b.textContent = 'Clear all demo data';
+  store = blankStore(); winners = store.winners; taamimEl.checked = true; doubleEl.checked = false; userChecked = false; save();
+  setContactType('email'); renderAll(); loadOrg();
 });
 
 /* ---------- Orchestration ---------- */
-function renderAll(){ renderHero(); renderDays(); renderCard(); renderSefer(); renderWinners(); renderOrganizer(); }
+function renderAll(){ renderHero(); renderDays(); renderCard(); renderSefer(); renderWinners(); if (orgSheet.isOpen && org.data) renderOrganizer(); }
+setContactType(store.contactType);
 renderAll();
+loadWinners();
 
 function viewKey(v){ return [v.state, v.idx, v.complete, v.learnIdx, v.dow].join('|'); }
 var lastKey = viewKey(view());
 setInterval(function(){
   var v = view(), key = viewKey(v);
-  if (key !== lastKey){ lastKey = key; renderAll(); } else if (!v.complete){ renderCount(v); }
+  if (key !== lastKey){ lastKey = key; renderAll(); loadWinners(); } else if (!v.complete){ renderCount(v); }
 }, 1000);
 
-/* Small-screen nav: single Organizer button */
-function syncNav(){
-  var small = window.matchMedia('(max-width: 720px)').matches;
-  $('#openOrg').hidden = small; $('#openOrgSmall').hidden = !small;
-}
-syncNav();
-window.addEventListener('resize', function(){ syncNav(); fitBanner(); });
+window.addEventListener('resize', fitBanner);
 if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitBanner);
 
-var nav = $('#nav');
-window.addEventListener('scroll', function(){ nav.classList.toggle('scrolled', window.scrollY > 4); }, { passive: true });
+/* Nav: shadow once scrolled, and mark the section in view */
+var nav = $('#nav'), navLinks = Array.prototype.slice.call(document.querySelectorAll('#links a'));
+var sections = navLinks.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+function syncNav(){
+  nav.classList.toggle('scrolled', window.scrollY > 4);
+  var line = nav.getBoundingClientRect().bottom + 24, current = 0;
+  sections.forEach(function(sec, i){ if (sec && sec.getBoundingClientRect().top <= line) current = i; });
+  if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) current = sections.length - 1;
+  navLinks.forEach(function(a, i){ if (i === current) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); });
+}
+window.addEventListener('scroll', syncNav, { passive: true });
+syncNav();
 })(window.CSM);

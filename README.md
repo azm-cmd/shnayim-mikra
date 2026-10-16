@@ -7,9 +7,13 @@ A static site for a shnayim mikra v'echad targum group: this week's parsha, one 
 ```
 index.html        Page markup
 css/styles.css    All styles (light and dark themes)
-js/data.js        Settings, parshiyos, aliyos, pesukim per perek
+js/config.js      Live-service settings (see SETUP.md)
+js/data.js        Settings, parshiyos, aliyos, entry window
 js/sefaria.js     Loads Mikra and Targum Onkelos from Sefaria
+js/service.js     Raffle API client and Sign in with Google
 js/app.js         Hero, day strip, reader, check-in, organizer sheet
+server/Code.gs    Google Apps Script: entries in a Google Sheet, organizer checks
+tests/            Server and entry-window tests (node --test)
 fonts/            Noto Sans Hebrew, for the reading text
 ```
 
@@ -29,6 +33,16 @@ The strip under the parsha title shows Rishon through Shevi'i (Sunday through Sh
 - Text is fetched in the browser from the [Sefaria](https://www.sefaria.org) API: *Miqra according to the Masorah* and *Targum Onkelos*. Each aliyah is cached on the device after it loads.
 - The strip follows the coming Shabbos's parsha. On Sunday through Tuesday the raffle card can still show last week's parsha, because check-in stays open until Wednesday.
 
-## Prototype limits
+## Raffle entries
 
-Entries, winners and reading progress are saved in the visitor's browser (`localStorage`), not on a server. The organizer code in `js/data.js` is visible in the page source.
+Entries go to a Google Sheet through a small Google Apps Script (`server/Code.gs`), with one tab per week. It's sized for 1,000 or more entries a week. The organizer panel opens only after Sign in with Google, and the server checks the account against an organizer list. [SETUP.md](SETUP.md) walks through connecting it.
+
+Until `js/config.js` is filled in, the site runs in **demo mode**: entries and winners stay on the visitor's device, and the organizer panel opens with demo tools.
+
+## Tests
+
+```
+node --test
+```
+
+This runs `server/Code.gs` against an in-memory Google Sheet. It checks entries, duplicates, closed windows, the Google sign-in checks, a 1,000-entry week, and that the entry window matches the site exactly.

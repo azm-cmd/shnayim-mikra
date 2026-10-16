@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chevra Shnayim Mikra</title>
+<meta name="description" content="Shnayim mikra v'echad targum, one aliyah a day, with a weekly raffle.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@500;800;900&family=Noto+Serif+Hebrew:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://www.sefaria.org" crossorigin>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-book" viewBox="0 0 100 80">
+      <g fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M7 22V67q0 4 4 4h78q4 0 4-4V22"/>
+        <rect x="14" y="7" width="34" height="53" rx="3"/>
+        <rect x="52" y="7" width="34" height="53" rx="3"/>
+        <path d="M21 20h20M21 29h20M21 38h20M21 47h20M59 20h20M59 29h20M59 38h20M59 47h20"/>
+      </g>
+    </symbol>
+    <symbol id="i-mark" viewBox="0 0 24 34">
+      <path d="M3 3h18v28l-9-7-9 7z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  </defs>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#this-week" aria-label="Chevra Shnayim Mikra, home">
+      <svg aria-hidden="true"><use href="#i-book"/></svg>
+      <span>Chevra Shnayim Mikra</span>
+    </a>
+    <nav class="links" aria-label="Sections">
+      <a href="#this-week">This week</a>
+      <a href="#sefer">Sefer</a>
+      <a href="#raffles">Raffles</a>
+      <a href="#winners">Winners</a>
+      <button class="btn-pill" id="openOrg" type="button">Organizer</button>
+    </nav>
+    <button class="btn-pill" id="openOrgSmall" type="button" hidden>Organizer</button>
+  </div>
+</header>
+
+<main>
+  <section class="hero" id="this-week">
+    <div class="wrap">
+      <div class="lockup">
+        <div class="lockup-top" aria-hidden="true">
+          <svg class="mark" viewBox="0 0 24 34"><use href="#i-mark"/></svg>
+          <svg class="book" viewBox="0 0 100 80"><use href="#i-book"/></svg>
+          <svg class="mark" viewBox="0 0 24 34"><use href="#i-mark"/></svg>
+        </div>
+        <h1>
+          <span class="banner" id="banner"><span lang="he" dir="rtl" id="heTitle">פרשת נח</span></span>
+          <span class="en" id="enTitle">Parshas Noach</span>
+        </h1>
+        <p class="week" id="weekLine"></p>
+        <p class="lede" id="lede"></p>
+      </div>
+
+      <nav class="days" id="days" aria-labelledby="daysTitle">
+        <div class="days-head">
+          <p id="daysTitle"><b>Daily aliyah</b> · <span id="daysParsha"></span></p>
+          <span id="daysCount"></span>
+        </div>
+        <ol id="dayList"></ol>
+      </nav>
+
+      <div class="card" id="card" data-state="open">
+        <div class="card-top">
+          <div>
+            <p class="chip"><i></i><span id="chipText">Entries open</span></p>
+            <p class="count" id="count" aria-live="off"></p>
+          </div>
+          <div class="prize"><small>Weekly raffle</small><b>$50</b></div>
+        </div>
+
+        <label class="check" id="checkRow">
+          <input type="checkbox" id="chk">
+          <span class="box" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></span>
+          <span class="check-text">
+            <strong id="chkLabel">I finished Parshas Noach</strong>
+            <small>Shnayim mikra v'echad targum</small>
+          </span>
+        </label>
+
+        <div class="reveal" id="reveal">
+          <div class="reveal-in">
+            <form id="entryForm" novalidate>
+              <div class="field">
+                <label for="fName">Name</label>
+                <input id="fName" name="name" type="text" autocomplete="name" maxlength="60">
+                <p class="err" id="eName" role="alert"></p>
+              </div>
+              <div class="field">
+                <label for="fContact">Email or phone number</label>
+                <input id="fContact" name="contact" type="text" autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="80">
+                <p class="hint" id="hContact">Used only to reach the winner.</p>
+                <p class="err" id="eContact" role="alert"></p>
+              </div>
+              <button class="btn" type="submit">Enter the raffle</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="ticket" id="ticket" hidden>
+          <div class="ok"><svg viewBox="0 0 24 24"><use href="#i-check"/></svg></div>
+          <h3 id="ticketTitle">You're entered</h3>
+          <p id="ticketText"></p>
+          <button class="btn-text" type="button" id="withdraw">Withdraw my entry</button>
+        </div>
+
+        <p class="note" id="note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="sefer">
+    <div class="wrap">
+      <h2>Sefer Bereishis</h2>
+      <p class="sub">One parsha a week, twelve in all. The $300 Sefer raffle follows the last one.</p>
+      <ul class="tiles" id="tiles"></ul>
+    </div>
+  </section>
+
+  <section class="block" id="raffles">
+    <div class="wrap">
+      <h2>RAFFLES</h2>
+      <div class="two">
+        <div class="panel weekly">
+          <h3>Every week</h3>
+          <p class="amount">$50</p>
+          <p class="amount-sub">One winner each week.</p>
+          <ol class="steps">
+            <li><div><b>Finish the parsha</b><span>Shnayim mikra v'echad targum, any time during the week.</span></div></li>
+            <li><div><b>Check in</b><span id="stepWindow"></span></div></li>
+            <li><div><b>Winner is drawn</b><span>One name is picked after entries close, and contacted by email or phone.</span></div></li>
+          </ol>
+        </div>
+        <div class="stack">
+          <div class="panel siyum">
+            <h3>Sefer raffle</h3>
+            <div>
+              <p class="prize-big">$300</p>
+              <p>At the end of Sefer Bereishis.</p>
+            </div>
+          </div>
+          <div class="panel siyum">
+            <h3>Chamishei Chumshei Torah raffle</h3>
+            <div>
+              <p class="prize-big">$1,000</p>
+              <p>When all five Chumashim are complete.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="winners">
+    <div class="wrap">
+      <h2>Weekly winners</h2>
+      <ul class="winners" id="winnersList"></ul>
+      <p class="empty" id="winnersEmpty"></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="he" lang="he" dir="rtl">חברה שנים מקרא</div>
+    <p>Chevra Shnayim Mikra</p>
+  </div>
+</footer>
+
+<div class="sheet-root" id="readerRoot" hidden>
+  <div class="scrim"></div>
+  <section class="sheet reader" role="dialog" aria-modal="true" aria-labelledby="readerTitle" tabindex="-1">
+    <header class="sheet-head">
+      <span class="handle" aria-hidden="true"></span>
+      <div class="sheet-bar">
+        <div class="reader-id">
+          <span class="ring" id="readerRing" aria-hidden="true"></span>
+          <div>
+            <h2 id="readerTitle"></h2>
+            <p id="readerSub"></p>
+          </div>
+        </div>
+        <button class="btn-text" data-close type="button">Done</button>
+      </div>
+      <div class="reader-tools">
+        <p class="fine">Read each pasuk twice, then the Targum once. Tap the circle when you finish a pasuk.</p>
+        <label class="switch"><input type="checkbox" id="taamim" checked> Ta’amim</label>
+      </div>
+    </header>
+    <div class="sheet-body" id="readerBody">
+      <div class="skel" id="readerLoading" aria-label="Loading text"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="reader-state" id="readerError" hidden role="alert">
+        <p id="readerErrorText">The text didn’t load. Check your connection and try again.</p>
+        <button class="btn-pill" id="readerRetry" type="button">Try again</button>
+        <a id="readerErrorLink" href="https://www.sefaria.org" target="_blank" rel="noopener">Open this aliyah on Sefaria</a>
+      </div>
+      <ol class="pesukim" id="pesukim" dir="ltr"></ol>
+      <div class="reader-foot" id="readerFoot" hidden>
+        <button class="btn" id="markAll" type="button">Mark all pesukim read</button>
+        <p class="fine" id="readerSource"></p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="sheet-root" id="sheetRoot" hidden>
+  <div class="scrim" id="scrim"></div>
+  <section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" tabindex="-1">
+    <header class="sheet-head" id="grab">
+      <span class="handle" aria-hidden="true"></span>
+      <div class="sheet-bar">
+        <h2 id="sheetTitle">Organizer</h2>
+        <button class="btn-text" id="sheetClose" data-close type="button">Done</button>
+      </div>
+    </header>
+    <div class="sheet-body" id="sheetBody">
+      <form class="lock" id="lockForm" novalidate>
+        <div>
+          <h3 style="margin-bottom:4px">Enter organizer code</h3>
+          <p class="fine">Only organizers can see entries and draw winners.</p>
+        </div>
+        <div class="field">
+          <label for="orgCode">Code</label>
+          <input id="orgCode" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="32">
+          <p class="err" id="eCode" role="alert"></p>
+        </div>
+        <button class="btn" type="submit">Unlock</button>
+      </form>
+      <div class="org-content" id="orgContent" hidden>
+      <div class="draw">
+        <div class="row"><b id="orgParsha"></b><span id="orgCount"></span></div>
+        <div class="winner" id="winnerBox" hidden aria-live="polite">
+          <small id="winnerLabel">Winner</small>
+          <strong id="drawName"></strong>
+          <span id="drawContact"></span>
+        </div>
+        <button class="btn" id="drawBtn" type="button">Draw $50 winner</button>
+      </div>
+
+      <div>
+        <h3>Entries this week</h3>
+        <ul class="elist" id="elist"></ul>
+        <p class="fine" id="eempty">No entries yet. They appear here as members check in.</p>
+      </div>
+
+      <div class="tools">
+        <h3 style="margin-bottom:0">Prototype tools</h3>
+        <div class="seg" id="seg" role="radiogroup" aria-label="Entry window">
+          <button type="button" role="radio" data-v="auto">Auto</button>
+          <button type="button" role="radio" data-v="open">Open</button>
+          <button type="button" role="radio" data-v="closed">Closed</button>
+        </div>
+        <p class="fine">Auto follows the real weekly schedule. Open and Closed let you preview each state.</p>
+        <button class="btn ghost" id="demoBtn" type="button">Add 5 demo entries</button>
+        <button class="btn ghost" id="clearBtn" type="button">Clear all prototype data</button>
+        <button class="btn ghost" id="lockBtn" type="button">Lock organizer</button>
+        <p class="fine">Prototype only. Entries and winners are saved on this device, not on a server.</p>
+      </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+
+<script src="js/data.js"></script>
+<script src="js/sefaria.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

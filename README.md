@@ -26,6 +26,7 @@ No build step. Open `index.html` directly, or serve the folder with any static h
 The strip under the parsha title shows Rishon through Shevi'i (Sunday through Shabbos), with today highlighted. Tapping a day opens that aliyah pasuk by pasuk, with the Hebrew text and Targum Onkelos.
 
 - **Progress fills in as you scroll.** A pasuk counts as read once it has been on screen for 1.5 seconds and has scrolled up past a line 30% from the top. Flicking straight to the end doesn't count. Reopening a day picks up at the first unread pasuk. "Mark all pesukim read" covers learning from a printed Chumash.
+- **Any parsha, any day.** The Sefer section is a grid of all twelve parshiyos, each with seven marks for the days read. Tap one to see its aliyos and open any of them, to catch up or read ahead.
 - **Double pasuk** prints each pasuk twice, then the Targum, so you can read straight down. **Ta'amim** turns the cantillation marks on or off. Both settings are remembered.
 - The reading text is set in Noto Sans Hebrew, a sans close to the Heebo used on the main page. Heebo itself has no ta'amim. The font is hosted in `fonts/` (SIL Open Font License).
 

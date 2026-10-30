@@ -1,6 +1,6 @@
 /* Chevra Shnayim Mikra
-   Layout: a centered title page (the parsha, between tallis stripes), then left-aligned sections set like a printed luach:
-   ruled rows, not cards. One filled panel, the check-in, because it's the one place you act.
+   Layout: a centered title page (the parsha, between tallis stripes), then left-aligned sections. Lists are ruled rows;
+   things you tap (days, parshiyos) look tappable. One filled panel, the check-in, because it's the one place you act.
    Color: blue-black ink and techeles blue on white. Type: Atkinson Hyperlegible Next (made for low-vision readers)
    for English, Heebo for Hebrew and figures, Noto Sans Hebrew for the pesukim. Scale: 13 / 15 / 17 / 20 / 24 / 32 / 44px. */
 
@@ -253,17 +253,39 @@ section.block{padding:clamp(3rem,7vw,5rem) 0 0}
 section.block > .wrap > h2{font:800 clamp(1.75rem,4.4vw,2.75rem)/1.1 var(--font-ui);letter-spacing:-.02em}
 .sub{color:var(--ink-2);margin-top:.6rem;max-width:36rem;font-size:1.0625rem}
 
-/* Sefer: a luach. Date, English, Hebrew, one ruled row per week */
-.luach{list-style:none;padding:0;margin:1.75rem 0 0;max-width:680px;border-top:2px solid var(--ink)}
-.luach li{display:grid;grid-template-columns:5.25rem minmax(0,1fr) auto;align-items:baseline;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
-.luach .dt{font-size:.875rem;color:var(--ink-2);font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:5px}
-.luach .dt svg{width:12px;height:12px;flex:none;fill:none;stroke:var(--ok);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
-.luach .en{font-weight:700}
-.luach .en small{display:block;font-size:.8125rem;font-weight:700;color:var(--accent)}
-.luach .he{font:800 1.375rem/1.2 var(--font-he)}
-.luach li.past .en,.luach li.past .he{color:var(--ink-2)}
-.luach li.now{background:var(--wash);border-bottom-color:transparent;padding-inline:12px;margin-inline:-8px;border-radius:10px}
-.luach li.now .dt,.luach li.now .he{color:var(--accent)}
+/* Sefer: twelve parshiyos, each one a button. Seven marks show which days are read. */
+.parshiyos{list-style:none;padding:0;margin:1.75rem 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.parsha{appearance:none;width:100%;height:100%;text-align:left;font-family:var(--font-ui);color:var(--ink);background:var(--bg);border:1.5px solid var(--line);border-radius:14px;padding:14px 14px 12px;display:grid;gap:2px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .15s ease,transform .1s ease-out}
+.parsha:hover{border-color:var(--accent)}
+.parsha:active{transform:scale(.97)}
+.parsha .he{font:800 1.625rem/1.2 var(--font-he);text-align:right}
+.parsha .en{font-weight:700;margin-top:6px}
+.parsha .dt{font-size:.8125rem;color:var(--ink-2)}
+.parsha .marks{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:10px}
+.parsha .marks i{height:4px;border-radius:2px;background:var(--line)}
+.parsha .marks i.part{background:color-mix(in srgb,var(--accent) 45%,transparent)}
+.parsha .marks i.on{background:var(--ok)}
+.parsha.past .he,.parsha.past .en{color:var(--ink-2)}
+.parsha.now{background:var(--wash);border-color:var(--accent)}
+.parsha.now .he,.parsha.now .dt{color:var(--accent)}
+.parsha.now .dt{font-weight:700}
+@media (max-width:400px){.parshiyos{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.parsha .he{font-size:1.4375rem}}
+
+/* A parsha's seven aliyos */
+.sheet-bar h2 span[lang="he"]{color:var(--ink-2);font-weight:800}
+.parsha-sub{color:var(--ink-2);font-size:.875rem;margin-top:1px}
+.aliyos{list-style:none;padding:0;margin:0}
+.aliyos li + li{border-top:1px solid var(--line)}
+.aliyah{appearance:none;border:0;background:none;width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;padding:12px 4px;text-align:left;font-family:var(--font-ui);color:var(--ink);cursor:pointer;border-radius:10px;-webkit-tap-highlight-color:transparent}
+.aliyah:hover{background:var(--mute-bg)}
+.aliyah .ring{width:44px}
+.aliyah .nm b{display:block;font-weight:700}
+.aliyah small{display:block;font-size:.8125rem;color:var(--ink-2)}
+.aliyah .rg{text-align:right;font-variant-numeric:tabular-nums}
+.aliyah.done .bar{stroke:var(--ok)}
+.aliyah.done .ltr{color:var(--ok)}
+.aliyah.today .ltr{inset:7px;background:var(--accent);color:var(--on-accent)}
+.aliyah.today .nm small{color:var(--accent);font-weight:700}
 
 /* Raffles: a ladder of three prizes, then how the weekly one works */
 .raffles{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(2rem,6vw,4.5rem);margin-top:1.75rem;align-items:start}
@@ -282,7 +304,7 @@ section.block > .wrap > h2{font:800 clamp(1.75rem,4.4vw,2.75rem)/1.1 var(--font-
 .steps b{display:block;font-weight:700}
 .steps span{color:var(--ink-2);font-size:.9375rem}
 
-/* Winners: same ruled rows as the luach */
+/* Winners: ruled rows */
 .winners{list-style:none;padding:0;margin:1.75rem 0 0;max-width:680px;border-top:2px solid var(--ink)}
 .winners li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid var(--line)}
 .winners .p{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}

@@ -5,9 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Chevra Shnayim Mikra</title>
 <meta name="description" content="Shnayim mikra v'echad targum, one aliyah a day, with a weekly raffle.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@500;800;900&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/heebo-hebrew-900-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/noto-sans-hebrew-hebrew-500-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preconnect" href="https://www.sefaria.org" crossorigin>
 <link rel="stylesheet" href="css/styles.css">
@@ -66,8 +65,8 @@
 
       <nav class="days" id="days" aria-labelledby="daysTitle">
         <div class="days-head">
-          <p id="daysTitle"><b>Daily aliyah</b> · <span id="daysParsha"></span></p>
-          <span id="daysCount"></span>
+          <h2 id="daysTitle">Daily aliyah<span id="daysParsha"></span></h2>
+          <p id="daysCount"></p>
         </div>
         <ol id="dayList"></ol>
       </nav>
@@ -78,7 +77,7 @@
             <p class="chip"><i></i><span id="chipText">Entries open</span></p>
             <p class="count" id="count" aria-live="off"></p>
           </div>
-          <div class="prize"><small>Weekly raffle</small><b>$50</b></div>
+          <p class="prize"><b>$50</b><small>raffle this week</small></p>
         </div>
 
         <label class="check" id="checkRow">
@@ -133,39 +132,27 @@
     <div class="wrap">
       <h2>Sefer Bereishis</h2>
       <p class="sub">One parsha a week, twelve in all. The $300 Sefer raffle follows the last one.</p>
-      <ul class="tiles" id="tiles"></ul>
+      <ol class="luach" id="tiles"></ol>
     </div>
   </section>
 
   <section class="block" id="raffles">
     <div class="wrap">
-      <h2>RAFFLES</h2>
-      <div class="two">
-        <div class="panel weekly">
-          <h3>Every week</h3>
-          <p class="amount">$50</p>
-          <p class="amount-sub">One winner each week.</p>
+      <h2>Raffles</h2>
+      <p class="sub">Entry is free. Finish the parsha, check in, and your name goes in the draw.</p>
+      <div class="raffles">
+        <ul class="ladder">
+          <li><b class="amt">$50</b><div><h3>Every week</h3><p>One name is drawn from everyone who checked in for that parsha.</p></div></li>
+          <li><b class="amt">$300</b><div><h3>Sefer Bereishis</h3><p>Drawn when the Sefer is finished, after Vayechi.</p></div></li>
+          <li><b class="amt">$1,000</b><div><h3>Chamishei Chumshei Torah</h3><p>Drawn when all five Chumashim are complete.</p></div></li>
+        </ul>
+        <div class="how">
+          <h3>How the weekly raffle works</h3>
           <ol class="steps">
             <li><div><b>Finish the parsha</b><span>Shnayim mikra v'echad targum, any time during the week.</span></div></li>
             <li><div><b>Check in</b><span id="stepWindow"></span></div></li>
-            <li><div><b>Winner is drawn</b><span>One name is picked after entries close, and contacted by email or phone.</span></div></li>
+            <li><div><b>The winner is drawn</b><span>One name is picked after entries close. The winner is contacted by email or phone.</span></div></li>
           </ol>
-        </div>
-        <div class="stack">
-          <div class="panel siyum">
-            <h3>Sefer raffle</h3>
-            <div>
-              <p class="prize-big">$300</p>
-              <p>At the end of Sefer Bereishis.</p>
-            </div>
-          </div>
-          <div class="panel siyum">
-            <h3>Chamishei Chumshei Torah raffle</h3>
-            <div>
-              <p class="prize-big">$1,000</p>
-              <p>When all five Chumashim are complete.</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -182,6 +169,7 @@
 
 <footer>
   <div class="wrap">
+    <span class="stripes" aria-hidden="true"></span>
     <div class="he" lang="he" dir="rtl">חברה שנים מקרא</div>
     <p>Chevra Shnayim Mikra</p>
   </div>

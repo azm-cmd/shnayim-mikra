@@ -14,7 +14,7 @@ js/service.js     Raffle API client and Sign in with Google
 js/app.js         Hero, day strip, reader, check-in, organizer sheet
 server/Code.gs    Google Apps Script: entries in a Google Sheet, organizer checks
 tests/            Server and entry-window tests (node --test)
-fonts/            Noto Sans Hebrew, for the reading text
+fonts/            Self-hosted fonts: Atkinson Hyperlegible Next, Heebo, Noto Sans Hebrew (SIL OFL)
 ```
 
 Live site: https://azm-cmd.github.io/shnayim-mikra/

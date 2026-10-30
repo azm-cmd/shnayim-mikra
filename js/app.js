@@ -191,7 +191,8 @@ function renderDays(){
   daysEl.hidden = idx < 0 || idx > 11;
   if (daysEl.hidden) return;
   var p = PARSHIYOS[idx], finished = 0;
-  $('#daysParsha').textContent = 'Parshas ' + p[1];
+  /* Name the parsha only when it differs from the one above (Sunday to Tuesday, while check-in is still open) */
+  $('#daysParsha').textContent = idx !== v.idx ? ' for Parshas ' + p[1] : '';
   dayBtns.forEach(function(btn, d){
     var s = dayStats(idx, d), today = d === v.dow;
     if (s.complete) finished++;
@@ -202,7 +203,7 @@ function renderDays(){
       (s.complete ? 'complete' : s.done + ' of ' + s.total + ' pesukim read'));
     setRing(btn.querySelector('.ring'), s.frac, CSM.heNum(d + 1, true), 'he');
   });
-  $('#daysCount').textContent = finished === 7 ? 'All 7 done' : finished + ' of 7 done';
+  $('#daysCount').textContent = finished === 7 ? 'All 7 days done' : finished + ' of 7 days done';
 }
 
 /* ---------- Check-in card ---------- */
@@ -322,20 +323,18 @@ $('#withdraw').addEventListener('click', function(){
 
 /* ---------- Sefer tiles ---------- */
 function renderSefer(){
-  var v = view(), ul = $('#tiles'); ul.textContent = '';
+  var v = view(), list = $('#tiles'); list.textContent = '';
   PARSHIYOS.forEach(function(p, i){
     var d = new Date(START.getFullYear(), START.getMonth(), START.getDate() + i * 7);
-    var ds = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     var cls = v.complete || i < v.idx ? 'past' : (i === v.idx ? 'now' : '');
-    var li = el('li', { class: 'tile ' + cls });
     var dt = el('span', { class: 'dt' });
     if (cls === 'past') dt.appendChild(checkIcon());
-    dt.appendChild(document.createTextNode(cls === 'now' ? 'This week, ' + ds : ds));
-    li.appendChild(el('span', { class: 'he', lang: 'he', dir: 'rtl', text: p[0] }));
-    li.appendChild(el('span', { class: 'en', text: p[1] }));
-    li.appendChild(dt);
+    dt.appendChild(document.createTextNode(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })));
+    var en = el('span', { class: 'en', text: p[1] });
+    if (cls === 'now') en.appendChild(el('small', { text: 'This week' }));
+    var li = el('li', { class: cls }, [ dt, en, el('span', { class: 'he', lang: 'he', dir: 'rtl', text: p[0] }) ]);
     if (cls === 'now') li.setAttribute('aria-current', 'true');
-    ul.appendChild(li);
+    list.appendChild(li);
   });
 }
 
@@ -472,7 +471,7 @@ function openReader(d){
   $('#readerTitle').textContent = '';
   $('#readerTitle').appendChild(document.createTextNode(DAYS[d][1] + ' '));
   $('#readerTitle').appendChild(el('span', { lang: 'he', dir: 'rtl', text: DAYS[d][0] }));
-  $('#readerSub').textContent = DAYS[d][3] + ' · Parshas ' + PARSHIYOS[idx][1] + ' · ' + CSM.rangeLabel(range) + ' · ' + reader.list.length + ' pesukim';
+  $('#readerSub').textContent = DAYS[d][3] + '’s aliyah, ' + CSM.rangeLabel(range) + ' (' + reader.list.length + ' pesukim)';
   $('#readerErrorLink').href = CSM.sefariaLink(reader.ref);
   pesukimEl.textContent = ''; readerBody.scrollTop = 0;
   renderReaderHead(); renderHow();
